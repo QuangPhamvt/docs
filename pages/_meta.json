@@ -1,0 +1,21 @@
+{
+  "index": "My HomePage",
+  "templates": "Templates",
+  "contact": "Contact Us",
+  "about": "About Us",
+  "github_link": {
+    "title": "GitHub",
+    "href": "https://github.com/QuangPhamvt",
+    "newWindow": true
+  },
+  "facebook_link": {
+    "title": "Facebook",
+    "href": "https://www.facebook.com/customafk",
+    "newWindow": true
+  },
+  "linkedin_link": {
+    "title": "LinkedIn",
+    "href": "https://www.linkedin.com/in/customafk",
+    "newWindow": true
+  }
+}
