@@ -3,5 +3,118 @@
 
 ## Dockerfile
 
+### NestJS
+
+```dockerfile 
+````
+### NextJS
+
+```dockerfile
+```
+
 ## Docker Compose
+
+## Nginx Docker Compose
+
+Docker Compose for Nginx with Perl make Nginx to be Load Balancer and Reverse Proxy
+
+```yaml
+version: "3.8"
+services:
+  nginx:
+    container_name: lunas-nginx
+    image: nginx:stable-alpine-perl
+    env_file:
+      - .env
+    ports:
+      - 80:80
+    expose:
+      - 80
+    restart: unless-stopped
+    mem_reservation: "100M"
+    mem_limit: "500M"
+    networks:
+    ...
+    volumes:
+      - ./templates:/etc/nginx/templates
+      - ./index.html:/var/www/html/index.html
+networks:
+...
+```
+Template for Nginx configuration
+
+- Structure
+
+> ./templates/*.conf.template is the template for the Nginx configuration
+
+```nginx
+# This is a template for Nginx configuration gateway
+upstream lunas-auth-api {
+  server ${LUNAS_AUTH_API}; # This is the URL of the auth service. eg: http://lunas-auth-api:3000
+}
+
+upstream lunas-ecommerce-api {
+  server ${LUNAS_ECOMMERCE_API}; # This is the URL of the ecommerce service. eg: http://lunas-ecommerce-api:3000
+}
+upstream lunas-order-api {
+  server ${LUNAS_ORDER_API}; #  This is the URL of the order service. eg: http://lunas-order-api:3000
+}
+
+
+server {
+  listen ${PORT}; # This is the port of the Nginx server for IPv4
+  listen [::]:${PORT}; # This is the port of the Nginx server for IPv6
+
+  server_name ${LUNAS_API_DOMAIN};
+
+  location / {
+
+    # Handle OPTIONS method (CORS preflight requests)
+    if ($request_method = OPTIONS) {
+      return 204;
+    }
+
+    #proxy_pass http://lunas-auth-api;
+
+    #proxy_set_header Host $host;
+    #proxy_set_header X-Real-IP $remote_addr;
+    #proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #proxy_set_header X-Forwarded-Proto $scheme;
+
+    # Routing to specific services based on the URL
+    location ~ ^/auth/(.*) {
+      set $auth_api $1;
+      # Proxy pass use the variable $auth_api to pass the URL to the auth service
+      # The URL will be http://lunas-auth-api/$auth_api where $auth_api is the URL after /auth/
+      proxy_pass http://lunas-auth-api/$auth_api;
+
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location ~ ^/ecommerce/(.*) {
+      set $user_api $1;
+      proxy_pass http://lunas-ecommerce-api/$user_api;
+
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location ~ ^/order/(.*) {
+      set $cms_api $1;
+      proxy_pass http://lunas-order-api/$cms_api;
+
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
+  }
+}
+```
+
 

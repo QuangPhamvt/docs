@@ -1,0 +1,61 @@
+## Define Component
+
+### Generic Component
+
+Define a generic component that can accept any type of data.
+
+```jsx
+interface IProps<TData> {
+  data: TData;
+  renderData: (data: TData) => React.ReactNode;
+}
+
+export function GenericComponent<TData>({ data }: IProps<TData>) {
+  return null;
+}
+
+```
+Usage:
+
+```jsx
+const Component = () => {
+  return (
+    <GenericComponent
+      data={1} // number
+      renderData={(data) => <div>{data}</div>} // (data: number) => React.ReactNode
+    />
+  );
+};
+```
+
+### Foward Ref Component
+
+Define a component that can accept a ref and all other props.
+
+```jsx
+// Example: Button
+interface IProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+}
+export const Button = React.forwardRef<HTMLButtonElement, IProps>(
+  ({ children, ...props }, ref) => {
+    return (
+      <button ref={ref} {...props}>
+        {children}
+      </button>
+    );
+  }
+);
+```
+### Use FC Component
+
+Define a component using `FC` type.
+
+```jsx
+interface IProps extends React.HTMLAttributes<HTMLDivElement>{
+  children: React.ReactNode;
+}
+export const FCComponent: React.FC<IProps> = ({ children, ...props }) => {
+  return <div {...props}>{children}</div>;
+};
+```
