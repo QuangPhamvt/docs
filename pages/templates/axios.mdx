@@ -1,0 +1,302 @@
+# Axios Setup
+
+## Install
+
+```bash
+npm install axios 
+yarn add axios
+bun install axios
+```
+
+## Setup
+```typescript
+// axiosClient.ts
+import axios, {
+  AxiosError,
+  AxiosInstance,
+  AxiosResponse,
+  HttpStatusCode,
+  InternalAxiosRequestConfig,
+} from 'axios'
+
+export interface IResposeError {
+  statusCode: number
+  message: string
+  error: string
+}
+export interface ICustomError<D = unknown> extends InternalAxiosRequestConfig<D> {
+  _retry?: boolean
+}
+
+/**
+ * Axios client to handle the requests and responses
+ * It also handles the token refresh
+ * @class axiosClient
+ * @constructor baseURL - The base URL for the API
+ * @method setupInterceptors - Method to setup the request and response interceptors
+ * @method onRequest - Method to add the token to the request
+ */
+export default class AxiosClient {
+  private axiosInstance: AxiosInstance
+  private store = store.getState()
+
+  constructor(baseURL: string | undefined) {
+    this.axiosInstance = axios.create({
+      baseURL,
+      withCredentials: true,
+      timeout: 10000,
+    })
+    this.onRequest = this.onRequest.bind(this)
+    this.onResponse = this.onResponse.bind(this)
+    this.setupInterceptors()
+  }
+
+  /**
+   * Method to setup the request and response interceptors
+   * @method setupInterceptors
+   * @return {void}
+   */
+  private setupInterceptors(): void {
+    this.axiosInstance.interceptors.request.use(this.onRequest, this.onRequestError)
+    // Add the response interceptor
+    this.axiosInstance.interceptors.response.use(this.onResponse, this.onResponseError)
+  }
+
+  // ADD A REQUEST INTERCEPTOR
+  /**
+   * Request interceptor to add the token to the request
+   */
+  private onRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+    return config
+  }
+  /**
+   * Request interceptor to handle the request error
+   */
+  private onRequestError(error: AxiosError): Promise<AxiosError> {
+    return Promise.reject(error)
+  }
+
+  // ADD A RESPONSE INTERCEPTOR
+  /**
+   * Response interceptor to handle the response
+   */
+  private async onResponse(response: AxiosResponse) {
+    return Promise.resolve(response)
+  }
+  /**
+   * Response interceptor to handle the response error
+   * It also handles the token refresh
+   * @method onResponseError
+   */
+  private async onResponseError(error: AxiosError<IResposeError>) {
+    return Promise.reject(error)
+  }
+
+  public getAxiosInstance(): AxiosInstance {
+    return this.axiosInstance
+  }
+}
+```
+
+```typescript
+// restfulAPI.ts
+import { AxiosResponse } from 'axios'
+
+import AxiosClient from './axiosClient'
+
+type TID = string | number
+
+interface IRestfulOptions {
+  path?: string
+}
+
+export interface IRestfulAPIConfig {
+  path: string
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+}
+
+/**
+ * RestfulAPI class is a base class for all restful API classes
+ * It contains all the basic methods for making restful API requests
+ * It uses AxiosClient to make the requests
+ * @method getRequest - for making GET requests
+ * @method getRequestById - for making GET requests by id
+ * @method postRequest - for making POST requests
+ * @method putRequest - for making PUT requests
+ * @method patchRequest - for making PATCH requests
+ * @method deleteRequest - for making DELETE requests
+ * @example class UserAPI extends RestfulAPI {
+ *  path = '/users'
+ * }
+ * const userAPI = new UserAPI()
+ * userAPI.getRequest()
+ * userAPI.getRequestById(1)
+ * userAPI.postRequest({name: 'John Doe'})
+ * userAPI.putRequest(1, {name: 'John Doe'})
+ * userAPI.patchRequest(1, {name: 'John Doe'})
+ * userAPI.deleteRequest(1)
+ */
+export class RestfulAPI {
+  protected path = ''
+  /**
+   * Axios client to make the requests
+   */
+  protected axiosClient = new AxiosClient(API_URL || '').getAxiosInstance()
+
+  /**
+   * getRequest is a method for making GET requests
+   * @param params - query parameters
+   * @param options - path to the endpoint
+   * @returns Promise<T>
+   */
+  public getRequest = <T>(params = {}, options: IRestfulOptions = {}): Promise<T> => {
+    const { path = '' } = options
+    return this.handleRequest<T>(
+      {
+        path: this.path + path,
+        method: 'GET',
+      },
+      params,
+    )
+  }
+
+  /**
+   * getRequestById is a method for making GET requests by id
+   * @param id - id of the resource
+   * @param options - path to the endpoint
+   * @returns Promise<T>
+   */
+  public getRequestById = <T>(id: TID, options: IRestfulOptions = {}): Promise<T> => {
+    const { path = '' } = options
+    return this.handleRequest<T>({
+      path: this.path + `${path}/${id}`,
+      method: 'GET',
+    })
+  }
+
+  /**
+   * postRequest is a method for making POST requests
+   * @param body - request body
+   * @param options - path to the endpoint
+   * @returns Promise<T>
+   */
+  public postRequest = <T>(body = {}, options: IRestfulOptions = {}): Promise<T> => {
+    const { path = '' } = options
+    return this.handleRequest<T>(
+      {
+        path: this.path + `${this.path}${path}`,
+        method: 'POST',
+      },
+      body,
+    )
+  }
+
+  /**
+   * putRequest is a method for making PUT requests
+   * @param id - id of the resource
+   * @param body - request body
+   * @param options - path to the endpoint
+   * @returns Promise<T>
+   */
+  public async putRequest<T>(id: TID | null, body = {}, options: IRestfulOptions = {}): Promise<T> {
+    const { path: Path } = this.optionsParser(options)
+    const path = id ? `${Path ?? ''}/${id}` : (Path ?? '')
+    return this.handleRequest<T>(
+      {
+        path: this.path + path,
+        method: 'PUT',
+      },
+      body,
+    )
+  }
+
+  /**
+   * patchRequest is a method for making PATCH requests
+   * @param id - id of the resource
+   * @param body - request body
+   * @param options - path to the endpoint
+   * @returns Promise<T>
+   */
+  public async patchRequest<T>(
+    id: TID | null,
+    body = {},
+    options: IRestfulOptions = {},
+  ): Promise<T> {
+    const { path: Path } = this.optionsParser(options)
+    const path = id ? `${Path ?? ''}/${id}` : (Path ?? '')
+    return this.handleRequest<T>(
+      {
+        path: this.path + path,
+        method: 'PATCH',
+      },
+      body,
+    )
+  }
+
+  /**
+   * deleteRequest is a method for making DELETE requests
+   * @param id - id of the resource
+   * @param options - path to the endpoint
+   * @returns Promise<T>
+   */
+  public deleteRequest = async <T>(id: TID | null, options: IRestfulOptions = {}): Promise<T> => {
+    const { path: Path } = options
+    const path = id ? `${Path ?? ''}/${id}` : (Path ?? '')
+    return this.handleRequest<T>({
+      path: this.path + path,
+      method: 'DELETE',
+    })
+  }
+
+  protected onResponse<T>(response: AxiosResponse): T {
+    return response.data as T
+  }
+
+  private async handleRequest<T>(config: IRestfulAPIConfig, payload = {}): Promise<T> {
+    switch (config.method) {
+      case 'GET':
+        return this.onResponse(await this.axiosClient.get(config.path, { params: payload }))
+      case 'POST':
+        return this.onResponse(await this.axiosClient.post(config.path, payload))
+      case 'PUT':
+        return this.onResponse(await this.axiosClient.put(config.path, payload))
+      case 'PATCH':
+        return this.onResponse(await this.axiosClient.patch(config.path, payload))
+      case 'DELETE':
+        return this.onResponse(await this.axiosClient.delete(config.path, payload))
+      default:
+        return this.onResponse(await this.axiosClient.get(config.path, { params: payload }))
+    }
+  }
+
+  private optionsParser(options: IRestfulOptions): IRestfulOptions {
+    if (!options.path) {
+      options.path = this.path
+    }
+    return options
+  }
+}
+
+```
+
+## Usage
+
+```typescript
+// userAPI.ts 
+import { RestfulAPI } from './restfulAPI' 
+
+class UserAPI extends RestfulAPI {
+  constructor() {
+    super()
+    this.path = '/users'
+  }
+  // this will be appended to the base path '/users' and request to http://localhost:3000/users
+  // with Method GET
+  getUsers = () => this.getRequest({}, {
+    path: '', 
+  })
+}
+
+const userAPI = new UserAPI()
+export default userAPI
+```
